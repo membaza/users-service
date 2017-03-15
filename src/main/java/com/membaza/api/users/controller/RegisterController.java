@@ -168,7 +168,7 @@ public final class RegisterController {
             model.addAttribute("message", messages.getMessage("auth.message." + result, null, locale));
             return "redirect:/login?lang=" + locale.getLanguage();
         }
-        
+
         return "redirect:/updatePassword.html?lang=" + locale.getLanguage();
     }
 
