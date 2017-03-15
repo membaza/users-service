@@ -58,7 +58,7 @@ public final class CaptchaServiceImpl implements CaptchaService {
             final GoogleResponse googleResponse =
                 restTemplate.getForObject(verifyUri, GoogleResponse.class);
 
-            LOGGER.debug("Google's response: %s", googleResponse.toString());
+            LOGGER.debug("Google's response: {}", googleResponse.toString());
 
             if (!googleResponse.isSuccess()) {
                 if (googleResponse.hasClientError()) {
