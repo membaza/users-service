@@ -25,6 +25,7 @@
         <java.version>1.8</java.version>
         <logstash.version>4.8</logstash.version>
         <guava.version>20.0</guava.version>
+        <passay.version>1.2.0</passay.version>
     </properties>
 
     <dependencies>
@@ -82,6 +83,12 @@
             <groupId>org.jboss.aerogear</groupId>
             <artifactId>aerogear-otp-java</artifactId>
             <version>1.0.0</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.passay</groupId>
+            <artifactId>passay</artifactId>
+            <version>${passay.version}</version>
         </dependency>
 
         <dependency>
