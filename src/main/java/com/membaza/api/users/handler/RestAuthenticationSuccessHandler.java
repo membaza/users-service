@@ -1,6 +1,5 @@
 package com.membaza.api.users.handler;
 
-import com.membaza.api.users.component.LoggedUser;
 import com.membaza.api.users.security.ActiveUserStore;
 import lombok.Getter;
 import lombok.Setter;

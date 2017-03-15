@@ -1,4 +1,4 @@
-package com.membaza.api.users.component;
+package com.membaza.api.users.handler;
 
 import com.membaza.api.users.security.ActiveUserStore;
 import lombok.Getter;
