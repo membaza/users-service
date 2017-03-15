@@ -1,4 +1,4 @@
-package com.membaza.api.users.service;
+package com.membaza.api.users.service.user;
 
 import com.membaza.api.users.dto.UserDto;
 import com.membaza.api.users.persistence.model.PasswordResetToken;
