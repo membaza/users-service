@@ -1,27 +1,12 @@
 package com.membaza.api.users.throwable;
 
+import org.springframework.web.bind.annotation.ResponseStatus;
+
+import static org.springframework.http.HttpStatus.CONFLICT;
+
 /**
  * @author Emil Forslund
- * @since 1.0.0
+ * @since  1.0.0
  */
-public final class UserAlreadyExistException extends RuntimeException {
-
-    private static final long serialVersionUID = 5861310537366287163L;
-
-    public UserAlreadyExistException() {
-        super();
-    }
-
-    public UserAlreadyExistException(final String message, final Throwable cause) {
-        super(message, cause);
-    }
-
-    public UserAlreadyExistException(final String message) {
-        super(message);
-    }
-
-    public UserAlreadyExistException(final Throwable cause) {
-        super(cause);
-    }
-
-}
+@ResponseStatus(value = CONFLICT, reason = "A user with that email already exists.")
+public final class UserAlreadyExistException extends RuntimeException {}

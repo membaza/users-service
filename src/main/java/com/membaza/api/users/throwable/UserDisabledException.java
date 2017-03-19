@@ -1,15 +1,12 @@
 package com.membaza.api.users.throwable;
 
-import com.membaza.api.users.persistence.model.User;
+import org.springframework.web.bind.annotation.ResponseStatus;
+
+import static org.springframework.http.HttpStatus.FORBIDDEN;
 
 /**
  * @author Emil Forslund
  * @since 1.0.0
  */
-public final class UserDisabledException extends RuntimeException {
-
-    public UserDisabledException(User user) {
-        super("User account '" + user.getEmail() + "' has been disabled.");
-    }
-
-}
+@ResponseStatus(value = FORBIDDEN, reason = "The specified user has been disabled.")
+public final class UserDisabledException extends RuntimeException {}

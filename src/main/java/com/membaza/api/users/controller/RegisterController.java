@@ -6,8 +6,9 @@ import com.membaza.api.users.controller.dto.RegisterDto;
 import com.membaza.api.users.controller.dto.VerifyDto;
 import com.membaza.api.users.persistence.model.Role;
 import com.membaza.api.users.persistence.model.User;
-import com.membaza.api.users.throwable.UserNotFoundException;
+import com.membaza.api.users.throwable.InvalidVerificationCodeException;
 import com.membaza.api.users.util.CommaSeparated;
+import com.mongodb.DuplicateKeyException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.env.Environment;
@@ -23,6 +24,7 @@ import java.util.Set;
 import static java.util.Objects.requireNonNull;
 import static org.springframework.data.mongodb.core.query.Criteria.where;
 import static org.springframework.data.mongodb.core.query.Query.query;
+import static org.springframework.http.HttpStatus.CONFLICT;
 
 /**
  * @author Emil Forslund
@@ -56,7 +58,6 @@ public class RegisterController {
 
     @PostMapping
     void register(@RequestBody RegisterDto register) {
-
         final User user = new User();
 
         user.setEmail(register.getEmail());
@@ -72,7 +73,7 @@ public class RegisterController {
 
         user.setConfirmed(false);
         user.setUserCreationCode(random.nextString(40));
-        mongo.insert(user);
+        mongo.insert(user); // Exception is handled below.
 
         // TODO: Send out confirmation email
     }
@@ -89,9 +90,7 @@ public class RegisterController {
                 .unset("userCreationCode"),
             User.class
         ).isUpdateOfExisting()) {
-            throw new UserNotFoundException(
-                "Verification code is either invalid or expired."
-            );
+            throw new InvalidVerificationCodeException();
         }
     }
 
@@ -104,11 +103,17 @@ public class RegisterController {
                       .and("userCreationCode").is(verification.getCode())
             ), User.class
         ).isUpdateOfExisting()) {
-            throw new UserNotFoundException(
-                "Verification code is either invalid or expired."
-            );
+            throw new InvalidVerificationCodeException();
         }
     }
+
+    ////////////////////////////////////////////////////////////////////////////
+    //                          Exception Handlers                            //
+    ////////////////////////////////////////////////////////////////////////////
+
+    @ExceptionHandler(DuplicateKeyException.class)
+    @ResponseStatus(value = CONFLICT, reason = "An user with that email already exists")
+    public void duplicateKeyException() {}
 
     private Set<Role> defaultRoles() {
         final Set<String> names = CommaSeparated.toSet(env.getProperty("service.roles.default"));

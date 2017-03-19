@@ -1,15 +1,12 @@
 package com.membaza.api.users.throwable;
 
-import com.membaza.api.users.persistence.model.User;
+import org.springframework.web.bind.annotation.ResponseStatus;
+
+import static org.springframework.http.HttpStatus.FORBIDDEN;
 
 /**
  * @author Emil Forslund
  * @since 1.0.0
  */
-public final class UserNotConfirmedException extends RuntimeException {
-
-    public UserNotConfirmedException(User user) {
-        super("User '" + user.getEmail() + "' has not yet confirmed registration.");
-    }
-
-}
+@ResponseStatus(value = FORBIDDEN, reason = "The specified user has not been confirmed.")
+public final class UserNotConfirmedException extends RuntimeException {}

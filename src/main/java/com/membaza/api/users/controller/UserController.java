@@ -79,4 +79,9 @@ public class UserController {
                               @RequestBody PasswordDto verification) {
 
     }
+
+    @PutMapping("/{userId}/password/reset")
+    void changePassword(@PathVariable String userId) {
+
+    }
 }

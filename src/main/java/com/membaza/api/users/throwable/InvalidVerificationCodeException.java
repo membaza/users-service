@@ -8,5 +8,5 @@ import static org.springframework.http.HttpStatus.NOT_FOUND;
  * @author Emil Forslund
  * @since 1.0.0
  */
-@ResponseStatus(value = NOT_FOUND, reason = "Specified user not found.")
-public final class UserNotFoundException extends RuntimeException {}
+@ResponseStatus(value = NOT_FOUND, reason = "Verification code is either invalid or expired")
+public final class InvalidVerificationCodeException extends RuntimeException {}

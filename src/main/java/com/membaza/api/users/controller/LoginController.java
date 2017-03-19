@@ -4,10 +4,9 @@ import com.membaza.api.users.controller.dto.LoginDto;
 import com.membaza.api.users.persistence.model.User;
 import com.membaza.api.users.service.jwt.JwtService;
 import com.membaza.api.users.service.jwt.JwtToken;
-import com.membaza.api.users.throwable.InvalidUsernameOrPasswordException;
+import com.membaza.api.users.throwable.InvalidEmailOrPasswordException;
 import com.membaza.api.users.throwable.UserDisabledException;
 import com.membaza.api.users.throwable.UserNotConfirmedException;
-import com.membaza.api.users.throwable.UserNotFoundException;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -54,7 +53,7 @@ public class LoginController {
 
     @PostMapping("/logout")
     void logout(@RequestBody JwtToken currentToken) {
-        // Do nothing currently.
+        // Do nothing as of now.
     }
 
     private User getLoggedIn(LoginDto login) {
@@ -62,10 +61,7 @@ public class LoginController {
         if (user == null || !passwordEncoder.matches(
                 login.getPassword(),
                 user.getPassword())) {
-
-            throw new InvalidUsernameOrPasswordException(
-                "Invalid username or password."
-            );
+            throw new InvalidEmailOrPasswordException();
         }
 
         assertUserStatus(user);
@@ -77,9 +73,9 @@ public class LoginController {
         final User user     = mongo.findOne(query(where("id").is(userId)), User.class);
 
         if (user == null) {
-            throw new UserNotFoundException(
-                "User '" + userId + "' no longer exists."
-            );
+            throw new RuntimeException(
+                "Received valid login token for nonexisting user '" +
+                userId + "'.");
         }
 
         assertUserStatus(user);
@@ -88,11 +84,11 @@ public class LoginController {
 
     private void assertUserStatus(User user) {
         if (!user.isConfirmed()) {
-            throw new UserNotConfirmedException(user);
+            throw new UserNotConfirmedException();
         }
 
         if (!user.isEnabled()) {
-            throw new UserDisabledException(user);
+            throw new UserDisabledException();
         }
     }
 }
