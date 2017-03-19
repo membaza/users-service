@@ -52,6 +52,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 "/users",
                 "/users/{userId}/verify",
                 "/users/{userId}/cancel",
+                "/users/{userId}/reset",
                 "/users/login",
                 "/users/logout").permitAll()
 

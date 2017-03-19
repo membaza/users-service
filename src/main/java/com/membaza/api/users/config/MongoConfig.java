@@ -14,19 +14,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 @Configuration
 public class MongoConfig {
 
-//    private final Environment env;
-//
-//    public MongoConfig(Environment env) {
-//        this.env = requireNonNull(env);
-//    }
-//
-//    @Bean
-//    public MongoClientFactoryBean mongo() {
-//        final MongoClientFactoryBean mongo = new MongoClientFactoryBean();
-//        mongo.setHost(env.getProperty("mongo.host"));
-//        return mongo;
-//    }
-
     @Bean
     public MongoTemplate mongoTemplate(Mongo mongo) throws Exception {
         return new MongoTemplate(mongo, "membaza-users");

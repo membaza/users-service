@@ -2,6 +2,8 @@ package com.membaza.api.users.service.purge;
 
 import com.membaza.api.users.component.DateComponent;
 import com.membaza.api.users.persistence.model.User;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.env.Environment;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Query;
@@ -24,6 +26,9 @@ import static org.springframework.data.mongodb.core.query.Query.query;
 @Service
 @EnableScheduling
 public final class TokensPurgeService {
+
+    private static final Logger LOGGER =
+        LoggerFactory.getLogger(TokensPurgeService.class);
 
     private final DateComponent dates;
     private final MongoTemplate mongo;
@@ -48,10 +53,14 @@ public final class TokensPurgeService {
         final Date oneWeekAgo = Date.from(dates.instantNow().minus(1, WEEKS));
 
         // Remove users that hasn't confirmed their registration in one week.
-        mongo.remove(query(
+        final int removed = mongo.remove(query(
             where("confirmed").is(false)
                 .and("dateRegistered").lt(oneWeekAgo)
-        ), User.class);
+        ), User.class).getN();
+
+        if (removed > 0) {
+            LOGGER.info("Removed " + removed + " unverified accounts.");
+        }
 
         // Remove tokens older than one week.
         purgeExpired("emailChanges",    oneWeekAgo);
@@ -60,9 +69,13 @@ public final class TokensPurgeService {
     }
 
     private void purgeExpired(String key, Date initiatedAfter) {
-        mongo.updateMulti(new Query(), new Update().pull(
+        final int purged = mongo.updateMulti(new Query(), new Update().pull(
             key,
             query(where("initiated").lt(initiatedAfter))
-        ), User.class);
+        ), User.class).getN();
+
+        if (purged > 0) {
+            LOGGER.info("Purged " + purged + " expired " + key + " tokens.");
+        }
     }
 }

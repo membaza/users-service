@@ -75,6 +75,8 @@ public class RegisterController {
         user.setUserCreationCode(random.nextString(40));
         mongo.insert(user); // Exception is handled below.
 
+        LOGGER.info("User '" + register.getEmail() + "' registered.");
+
         // TODO: Send out confirmation email
     }
 
@@ -92,6 +94,8 @@ public class RegisterController {
         ).isUpdateOfExisting()) {
             throw new InvalidVerificationCodeException();
         }
+
+        LOGGER.info("User '" + userId + "' verified registration.");
     }
 
     @PostMapping("/{userId}/cancel")
@@ -105,6 +109,8 @@ public class RegisterController {
         ).isUpdateOfExisting()) {
             throw new InvalidVerificationCodeException();
         }
+
+        LOGGER.info("User '" + userId + "' cancelled registration.");
     }
 
     ////////////////////////////////////////////////////////////////////////////
