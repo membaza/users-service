@@ -2,9 +2,10 @@ package com.membaza.api.users.persistence.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
-import javax.persistence.Id;
 import javax.validation.constraints.NotNull;
 import java.util.Date;
 import java.util.Set;
@@ -19,6 +20,8 @@ public final class User {
 
     @Id
     private String id;
+
+    @Indexed(unique=true)
     private @NotNull String email;
     private @NotNull String password;
     private @NotNull Set<Role> roles;
@@ -27,43 +30,14 @@ public final class User {
     private boolean confirmed;
     private boolean enabled;
 
+    @Indexed(unique=true)
     private String userCreationCode;
     private Set<EmailChange> emailChanges;
     private Set<PasswordChange> passwordChanges;
     private Set<UserDeletion> userDeletions;
 
     @JsonIgnore
-    public String getPassword() {
+    public String getPassword(){
         return password;
-    }
-
-    @JsonIgnore
-    public boolean isConfirmed() {
-        return confirmed;
-    }
-
-    @JsonIgnore
-    public boolean isEnabled() {
-        return enabled;
-    }
-
-    @JsonIgnore
-    public String getUserCreationCode() {
-        return userCreationCode;
-    }
-
-    @JsonIgnore
-    public Set<EmailChange> getEmailChanges() {
-        return emailChanges;
-    }
-
-    @JsonIgnore
-    public Set<PasswordChange> getPasswordChanges() {
-        return passwordChanges;
-    }
-
-    @JsonIgnore
-    public Set<UserDeletion> getUserDeletions() {
-        return userDeletions;
     }
 }

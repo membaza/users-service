@@ -1,8 +1,8 @@
 package com.membaza.api.users.persistence.model;
 
 import lombok.Data;
+import org.springframework.data.annotation.Id;
 
-import javax.persistence.Id;
 import java.util.Date;
 
 /**
@@ -12,8 +12,7 @@ import java.util.Date;
 @Data
 public final class EmailChange {
 
-    @Id
-    private String id;
+    private @Id String id;
     private Date initiated;
     private String changeTo;
 

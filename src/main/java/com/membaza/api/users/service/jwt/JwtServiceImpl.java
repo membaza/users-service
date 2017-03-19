@@ -1,6 +1,7 @@
 package com.membaza.api.users.service.jwt;
 
 import com.membaza.api.users.persistence.model.User;
+import com.membaza.api.users.util.EncryptionUtil;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtBuilder;
 import io.jsonwebtoken.Jwts;
@@ -8,14 +9,14 @@ import io.jsonwebtoken.SignatureAlgorithm;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
-import javax.crypto.spec.SecretKeySpec;
 import java.security.Key;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.joining;
-import static javax.xml.bind.DatatypeConverter.parseBase64Binary;
 
 /**
  * @author Emil Forslund
@@ -34,20 +35,23 @@ public final class JwtServiceImpl implements JwtService {
     public JwtToken createLoginToken(User user) {
         return createJWT(
             UUID.randomUUID().toString(),
-            env.getProperty("service.jws.issuer"),
+            env.getProperty("service.jwt.issuer"),
             user.getId(),
             user.getRoles().stream()
                 .flatMap(r -> r.getPrivileges().stream())
                 .distinct()
                 .collect(joining(",")),
-            Long.parseLong(env.getProperty("service.jws.expiration"))
+            Long.parseLong(env.getProperty("service.jwt.expiration"))
         );
     }
 
     @Override
     public Claims validate(JwtToken token) {
+        final Key signingKey = EncryptionUtil.getPublicKey(
+            env.getProperty("service.jwt.public"));
+
         return Jwts.parser()
-            .setSigningKey(parseBase64Binary(getSecret()))
+            .setSigningKey(signingKey)
             .parseClaimsJws(token.getToken())
             .getBody();
     }
@@ -59,26 +63,25 @@ public final class JwtServiceImpl implements JwtService {
                                long ttlMillis) {
 
         // The JWT signature algorithm we will be using to sign the token
-        final SignatureAlgorithm signatureAlgorithm = SignatureAlgorithm.HS256;
+        final SignatureAlgorithm signatureAlgorithm = SignatureAlgorithm.RS256;
 
         final long nowMillis = System.currentTimeMillis();
         final Date now = new Date(nowMillis);
 
         // We will sign our JWT with our ApiKey secret
-        final byte[] apiKeySecretBytes = parseBase64Binary(getSecret());
+        final Key signingKey = EncryptionUtil.getPrivateKey(
+            env.getProperty("service.jwt.secret"));
 
-        final Key signingKey = new SecretKeySpec(
-            apiKeySecretBytes,
-            signatureAlgorithm.getJcaName()
-        );
+        final Map<String, Object> claims = new HashMap<>();
+        claims.put("privileges", privileges);
 
         // Let's set the JWT Claims
         final JwtBuilder builder = Jwts.builder()
+            .setClaims(claims)
             .setId(id)
             .setIssuer(issuer)
             .setIssuedAt(now)
             .setSubject(subject)
-            .setPayload(privileges)
             .signWith(signatureAlgorithm, signingKey);
 
         // If it has been specified, let's add the expiration
@@ -90,9 +93,5 @@ public final class JwtServiceImpl implements JwtService {
 
         // Builds the JWT and serializes it to a compact, URL-safe string
         return new JwtToken(builder.compact());
-    }
-
-    private String getSecret() {
-        return env.getProperty("service.jws.secret");
     }
 }

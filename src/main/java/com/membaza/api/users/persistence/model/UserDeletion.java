@@ -2,7 +2,7 @@ package com.membaza.api.users.persistence.model;
 
 import lombok.Data;
 
-import javax.persistence.Id;
+import org.springframework.data.annotation.Id;
 import java.util.Date;
 
 /**

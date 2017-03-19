@@ -62,19 +62,19 @@ public class UserController {
     //                           Change Password                              //
     ////////////////////////////////////////////////////////////////////////////
 
-    @PutMapping("/{userId}/email")
+    @PutMapping("/{userId}/password")
     void changePassword(@PathVariable String userId,
                         @RequestBody PasswordDto email) {
 
     }
 
-    @PutMapping("/{userId}/email/verify")
+    @PutMapping("/{userId}/password/verify")
     void changePasswordVerify(@PathVariable String userId,
                               @RequestBody PasswordDto verification) {
 
     }
 
-    @PutMapping("/{userId}/email/cancel")
+    @PutMapping("/{userId}/password/cancel")
     void changePasswordCancel(@PathVariable String userId,
                               @RequestBody PasswordDto verification) {
 

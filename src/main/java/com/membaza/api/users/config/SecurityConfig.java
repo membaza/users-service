@@ -18,7 +18,7 @@ import static org.springframework.http.HttpMethod.*;
  */
 @Configuration
 @EnableWebSecurity
-public final class SecurityConfig extends WebSecurityConfigurerAdapter {
+public class SecurityConfig extends WebSecurityConfigurerAdapter {
 
     private final AuthenticationEntryPoint authenticationEntryPoint;
     private final JwtAuthenticationProvider jwtAuthenticationProvider;

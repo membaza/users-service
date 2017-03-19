@@ -6,27 +6,23 @@ import com.membaza.api.users.controller.dto.RegisterDto;
 import com.membaza.api.users.controller.dto.VerifyDto;
 import com.membaza.api.users.persistence.model.Role;
 import com.membaza.api.users.persistence.model.User;
-import com.membaza.api.users.persistence.repository.UserRepository;
-import com.membaza.api.users.throwable.UserAlreadyExistException;
 import com.membaza.api.users.throwable.UserNotFoundException;
 import com.membaza.api.users.util.CommaSeparated;
-import com.mongodb.DuplicateKeyException;
-import io.jsonwebtoken.Claims;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.env.Environment;
 import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Collection;
 import java.util.HashSet;
-import java.util.Objects;
 import java.util.Set;
 
 import static java.util.Objects.requireNonNull;
+import static org.springframework.data.mongodb.core.query.Criteria.where;
+import static org.springframework.data.mongodb.core.query.Query.query;
 
 /**
  * @author Emil Forslund
@@ -39,21 +35,18 @@ public class RegisterController {
     private static final Logger LOGGER =
         LoggerFactory.getLogger(RegisterController.class);
 
-    private final UserRepository users;
     private final DateComponent dates;
     private final RandomComponent random;
     private final PasswordEncoder passEncoder;
     private final Environment env;
     private final MongoTemplate mongo;
 
-    public RegisterController(UserRepository users,
-                              DateComponent dates,
+    public RegisterController(DateComponent dates,
                               RandomComponent random,
                               PasswordEncoder passEncoder,
                               Environment env,
                               MongoTemplate mongo) {
 
-        this.users       = requireNonNull(users);
         this.dates       = requireNonNull(dates);
         this.random      = requireNonNull(random);
         this.passEncoder = requireNonNull(passEncoder);
@@ -79,18 +72,7 @@ public class RegisterController {
 
         user.setConfirmed(false);
         user.setUserCreationCode(random.nextString(40));
-
-        try {
-            users.save(user);
-        } catch (final DuplicateKeyException ex) {
-            LOGGER.warn("Attempted to register user with email '%s' that " +
-                        "already exists.", register.getEmail());
-
-            throw new UserAlreadyExistException(
-                "User with email '" + register.getEmail() + "' already exists.",
-                ex
-            );
-        }
+        mongo.insert(user);
 
         // TODO: Send out confirmation email
     }
@@ -99,58 +81,42 @@ public class RegisterController {
     void registerVerify(@PathVariable String userId,
                         @RequestBody VerifyDto verification) {
 
-        final User user = users.findOne(userId);
-        if (user == null
-        || !Objects.equals(user.getUserCreationCode(),
-                           verification.getCode())) {
-
+        if (!mongo.updateFirst(
+            query(where("id").is(userId)
+                  .and("userCreationCode").is(verification.getCode())
+            ), new Update()
+                .set("confirmed", true)
+                .unset("userCreationCode"),
+            User.class
+        ).isUpdateOfExisting()) {
             throw new UserNotFoundException(
                 "Verification code is either invalid or expired."
             );
         }
-
-        user.setConfirmed(true);
-        user.setUserCreationCode(null);
-
-        users.save(user);
     }
 
     @PostMapping("/{userId}/cancel")
     void registerCancel(@PathVariable String userId,
                         @RequestBody VerifyDto verification) {
 
-        final User user = users.findOne(userId);
-        if (user == null
-            || !Objects.equals(user.getUserCreationCode(),
-                               verification.getCode())) {
-
+        if (!mongo.remove(
+            query(where("id").is(userId)
+                      .and("userCreationCode").is(verification.getCode())
+            ), User.class
+        ).isUpdateOfExisting()) {
             throw new UserNotFoundException(
                 "Verification code is either invalid or expired."
             );
         }
-
-        users.delete(user);
     }
 
     private Set<Role> defaultRoles() {
         final Set<String> names = CommaSeparated.toSet(env.getProperty("service.roles.default"));
-        final Query rolesQuery = new Query(Criteria.where("name").in(names));
+        final Query rolesQuery = new Query(where("name").in(names));
         return new HashSet<>(mongo.find(rolesQuery, Role.class));
     }
 
     private Set<String> defaultPrivileges() {
         return CommaSeparated.toSet(env.getProperty("service.privileges.default"));
-    }
-
-    private void assertClaim(Claims claims, String privilege) {
-        @SuppressWarnings("unchecked")
-        final Collection<String> privileges =
-            (Collection<String>) claims.get("privileges");
-
-        if (!privileges.contains(privilege)) {
-            throw new IllegalArgumentException(
-                "Specified verification code is not valid for this action."
-            );
-        }
     }
 }

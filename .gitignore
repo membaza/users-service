@@ -3,3 +3,6 @@ sonar-project.properties
 /target/
 nb-configuration.xml
 *.iml
+*.key
+*.pem
+*.der
