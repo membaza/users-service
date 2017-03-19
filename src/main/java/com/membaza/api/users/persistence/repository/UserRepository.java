@@ -1,17 +1,14 @@
 package com.membaza.api.users.persistence.repository;
 
 import com.membaza.api.users.persistence.model.User;
-import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.mongodb.repository.MongoRepository;
 
 /**
  * @author Emil Forslund
  * @since 1.0.0
  */
-public interface UserRepository extends JpaRepository<User, Long> {
+public interface UserRepository extends MongoRepository<User, String> {
 
     User findByEmail(String email);
-
-    @Override
-    void delete(User user);
 
 }

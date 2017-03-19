@@ -1,270 +1,156 @@
 package com.membaza.api.users.controller;
 
-import com.membaza.api.users.dto.PasswordDto;
-import com.membaza.api.users.dto.UserDto;
-import com.membaza.api.users.event.RegistrationCompleteEvent;
-import com.membaza.api.users.handler.GenericResponse;
+import com.membaza.api.users.component.DateComponent;
+import com.membaza.api.users.component.RandomComponent;
+import com.membaza.api.users.controller.dto.RegisterDto;
+import com.membaza.api.users.controller.dto.VerifyDto;
+import com.membaza.api.users.persistence.model.Role;
 import com.membaza.api.users.persistence.model.User;
-import com.membaza.api.users.persistence.model.VerificationToken;
-import com.membaza.api.users.service.captcha.CaptchaService;
-import com.membaza.api.users.service.user.UserSecurityService;
-import com.membaza.api.users.service.user.UserService;
-import com.membaza.api.users.throwable.InvalidOldPasswordException;
+import com.membaza.api.users.persistence.repository.UserRepository;
+import com.membaza.api.users.throwable.UserAlreadyExistException;
 import com.membaza.api.users.throwable.UserNotFoundException;
+import com.membaza.api.users.util.CommaSeparated;
+import com.mongodb.DuplicateKeyException;
+import io.jsonwebtoken.Claims;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.context.MessageSource;
 import org.springframework.core.env.Environment;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.validation.Valid;
-import java.io.UnsupportedEncodingException;
-import java.util.Locale;
-import java.util.UUID;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Objects;
+import java.util.Set;
 
 import static java.util.Objects.requireNonNull;
 
 /**
  * @author Emil Forslund
- * @since  1.0.0
+ * @since 1.0.0
  */
-@Controller
-@RequestMapping("/api/v1")
-public final class RegisterController {
+@RestController
+@RequestMapping("/users")
+public class RegisterController {
 
     private static final Logger LOGGER =
         LoggerFactory.getLogger(RegisterController.class);
 
-    private final UserService userService;
-    private final CaptchaService captchaService;
-    private final MessageSource messages;
-    private final JavaMailSender mailSender;
-    private final ApplicationEventPublisher eventPublisher;
-    private final UserSecurityService userSecurityService;
+    private final UserRepository users;
+    private final DateComponent dates;
+    private final RandomComponent random;
+    private final PasswordEncoder passEncoder;
     private final Environment env;
+    private final MongoTemplate mongo;
 
-    public RegisterController(
-            final UserService userService,
-            final CaptchaService captchaService,
-            final MessageSource messages,
-            final JavaMailSender mailSender,
-            final ApplicationEventPublisher eventPublisher,
-            final UserSecurityService userSecurityService,
-            final Environment env) {
+    public RegisterController(UserRepository users,
+                              DateComponent dates,
+                              RandomComponent random,
+                              PasswordEncoder passEncoder,
+                              Environment env,
+                              MongoTemplate mongo) {
 
-        this.userService         = requireNonNull(userService);
-        this.captchaService      = requireNonNull(captchaService);
-        this.messages            = requireNonNull(messages);
-        this.mailSender          = requireNonNull(mailSender);
-        this.eventPublisher      = requireNonNull(eventPublisher);
-        this.userSecurityService = requireNonNull(userSecurityService);
-        this.env                 = requireNonNull(env);
+        this.users       = requireNonNull(users);
+        this.dates       = requireNonNull(dates);
+        this.random      = requireNonNull(random);
+        this.passEncoder = requireNonNull(passEncoder);
+        this.env         = requireNonNull(env);
+        this.mongo       = requireNonNull(mongo);
     }
 
-    @ResponseBody
-    @PostMapping("/users/register")
-    public GenericResponse registerUserAccount(
-            final @Valid UserDto accountDto,
-            final HttpServletRequest request) {
+    @PostMapping
+    void register(@RequestBody RegisterDto register) {
 
-        final String response = request.getParameter("g-recaptcha-response");
-        captchaService.processResponse(response);
+        final User user = new User();
 
-        LOGGER.debug("Registering user account with information: {}", accountDto);
+        user.setEmail(register.getEmail());
+        user.setPassword(passEncoder.encode(register.getPassword()));
+        user.setDateRegistered(dates.now());
+        user.setEnabled(true);
+        user.setRoles(defaultRoles());
+        user.setPrivileges(defaultPrivileges());
 
-        final User registered = userService.registerNewUserAccount(accountDto);
-        eventPublisher.publishEvent(new RegistrationCompleteEvent(
-            registered, request.getLocale(), getAppUrl(request)));
+        // If the user is logged in with CREATE_USER privilege, then we can set
+        // confirmed to true immediately. Otherwise, the registration will have
+        // to be confirmed by email.
 
-        return new GenericResponse("success");
-    }
+        user.setConfirmed(false);
+        user.setUserCreationCode(random.nextString(40));
 
-    @GetMapping("/users/register/confirm")
-    public String confirmRegistration(
-            final Locale locale,
-            final Model model,
-            final @RequestParam("token") String token
-    ) throws UnsupportedEncodingException {
+        try {
+            users.save(user);
+        } catch (final DuplicateKeyException ex) {
+            LOGGER.warn("Attempted to register user with email '%s' that " +
+                        "already exists.", register.getEmail());
 
-        final String result = userService.validateVerificationToken(token);
-
-        if (result.equals("valid")) {
-            final User user = userService.getUser(token);
-
-            if (user.isUsing2FA()) {
-                model.addAttribute("qr", userService.generateQRUrl(user));
-                return "redirect:/qrcode.html?lang=" + locale.getLanguage();
-            }
-
-            model.addAttribute("message", messages.getMessage(
-                "message.accountVerified", null, locale));
-
-            return "redirect:/login?lang=" + locale.getLanguage();
+            throw new UserAlreadyExistException(
+                "User with email '" + register.getEmail() + "' already exists.",
+                ex
+            );
         }
 
-        model.addAttribute("message", messages.getMessage("auth.message." + result, null, locale));
-        model.addAttribute("expired", "expired".equals(result));
-        model.addAttribute("token", token);
-
-        return "redirect:/badUser.html?lang=" + locale.getLanguage();
+        // TODO: Send out confirmation email
     }
 
-    @ResponseBody
-    @GetMapping("/user/register/resend")
-    public GenericResponse resendRegistrationToken(
-            final HttpServletRequest request,
-            final @RequestParam("token") String existingToken) {
+    @PostMapping("/{userId}/verify")
+    void registerVerify(@PathVariable String userId,
+                        @RequestBody VerifyDto verification) {
 
-        final VerificationToken newToken = userService.generateNewVerificationToken(existingToken);
-        final User user = userService.getUser(newToken.getToken());
+        final User user = users.findOne(userId);
+        if (user == null
+        || !Objects.equals(user.getUserCreationCode(),
+                           verification.getCode())) {
 
-        mailSender.send(constructResendVerificationTokenEmail(
-            getAppUrl(request), request.getLocale(), newToken, user));
-
-        return new GenericResponse(messages.getMessage(
-            "message.resendToken", null, request.getLocale()
-        ));
-    }
-
-    @ResponseBody
-    @PostMapping("/user/password/reset")
-    public GenericResponse resetPassword(
-            final HttpServletRequest request,
-            final @RequestParam("email") String userEmail) {
-
-        final User user = userService.findUserByEmail(userEmail);
-        if (user == null) {
-            throw new UserNotFoundException();
+            throw new UserNotFoundException(
+                "Verification code is either invalid or expired."
+            );
         }
 
-        final String token = UUID.randomUUID().toString();
+        user.setConfirmed(true);
+        user.setUserCreationCode(null);
 
-        userService.createPasswordResetTokenForUser(user, token);
-        mailSender.send(constructResetTokenEmail(
-            getAppUrl(request), request.getLocale(), token, user)
-        );
-
-        return new GenericResponse(messages.getMessage(
-            "message.resetPasswordEmail", null, request.getLocale()
-        ));
+        users.save(user);
     }
 
-    @GetMapping("/user/password/change")
-    public String showChangePasswordPage(
-            final Locale locale,
-            final Model model,
-            final @RequestParam("id") long id,
-            final @RequestParam("token") String token) {
+    @PostMapping("/{userId}/cancel")
+    void registerCancel(@PathVariable String userId,
+                        @RequestBody VerifyDto verification) {
 
-        final String result = userSecurityService.validatePasswordResetToken(id, token);
-        if (result != null) {
-            model.addAttribute("message", messages.getMessage("auth.message." + result, null, locale));
-            return "redirect:/login?lang=" + locale.getLanguage();
+        final User user = users.findOne(userId);
+        if (user == null
+            || !Objects.equals(user.getUserCreationCode(),
+                               verification.getCode())) {
+
+            throw new UserNotFoundException(
+                "Verification code is either invalid or expired."
+            );
         }
 
-        return "redirect:/updatePassword.html?lang=" + locale.getLanguage();
+        users.delete(user);
     }
 
-    @ResponseBody
-    @PostMapping("/user/password/save")
-    public GenericResponse savePassword(
-            final Locale locale,
-            final @Valid PasswordDto passwordDto) {
-
-        final User user = (User) SecurityContextHolder.getContext()
-            .getAuthentication()
-            .getPrincipal();
-
-        userService.changeUserPassword(user, passwordDto.getNewPassword());
-        return new GenericResponse(messages.getMessage(
-            "message.resetPasswordSuc", null, locale));
+    private Set<Role> defaultRoles() {
+        final Set<String> names = CommaSeparated.toSet(env.getProperty("service.roles.default"));
+        final Query rolesQuery = new Query(Criteria.where("name").in(names));
+        return new HashSet<>(mongo.find(rolesQuery, Role.class));
     }
 
-    // change user password
-    @ResponseBody
-    @PostMapping("/user/password/update")
-    public GenericResponse changeUserPassword(
-            final Locale locale,
-            final @Valid PasswordDto passwordDto) {
+    private Set<String> defaultPrivileges() {
+        return CommaSeparated.toSet(env.getProperty("service.privileges.default"));
+    }
 
-        final User user = userService.findUserByEmail(
-            ((User) SecurityContextHolder.getContext()
-                .getAuthentication()
-                .getPrincipal()
-            ).getEmail());
+    private void assertClaim(Claims claims, String privilege) {
+        @SuppressWarnings("unchecked")
+        final Collection<String> privileges =
+            (Collection<String>) claims.get("privileges");
 
-        if (!userService.checkIfValidOldPassword(user, passwordDto.getOldPassword())) {
-            throw new InvalidOldPasswordException();
+        if (!privileges.contains(privilege)) {
+            throw new IllegalArgumentException(
+                "Specified verification code is not valid for this action."
+            );
         }
-
-        userService.changeUserPassword(user, passwordDto.getNewPassword());
-        return new GenericResponse(messages.getMessage("message.updatePasswordSuc", null, locale));
-    }
-
-    @ResponseBody
-    @PostMapping("/user/update/2fa")
-    public GenericResponse modifyUser2FA(
-            final @RequestParam("use2FA") boolean use2FA
-    ) throws UnsupportedEncodingException {
-
-        final User user = userService.updateUser2FA(use2FA);
-        if (use2FA) {
-            return new GenericResponse(userService.generateQRUrl(user));
-        }
-
-        return null;
-    }
-
-    ////////////////////////////////////////////////////////////////////////////
-    //                             Internal Methods                           //
-    ////////////////////////////////////////////////////////////////////////////
-
-    private SimpleMailMessage constructResendVerificationTokenEmail(
-            final String contextPath,
-            final Locale locale,
-            final VerificationToken newToken,
-            final User user) {
-
-        final String confirmationUrl = contextPath +
-            "/registrationConfirm.html?token=" + newToken.getToken();
-
-        final String message = messages.getMessage("message.resendToken", null, locale);
-        return constructEmail("Resend Registration Token", message + " \r\n" + confirmationUrl, user);
-    }
-
-    private SimpleMailMessage constructResetTokenEmail(
-            final String contextPath,
-            final Locale locale,
-            final String token,
-            final User user) {
-
-        final String url = contextPath + "/user/changePassword?id=" + user.getId() + "&token=" + token;
-        final String message = messages.getMessage("message.resetPassword", null, locale);
-        return constructEmail("Reset Password", message + " \r\n" + url, user);
-    }
-
-    private SimpleMailMessage constructEmail(
-            final String subject,
-            final String body,
-            final User user) {
-
-        final SimpleMailMessage email = new SimpleMailMessage();
-        email.setSubject(subject);
-        email.setText(body);
-        email.setTo(user.getEmail());
-        email.setFrom(env.getProperty("support.email"));
-        return email;
-    }
-
-    private String getAppUrl(HttpServletRequest request) {
-        return "http://" + request.getServerName() + ":" +
-            request.getServerPort() + request.getContextPath();
     }
 }

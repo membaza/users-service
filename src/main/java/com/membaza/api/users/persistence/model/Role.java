@@ -1,35 +1,27 @@
 package com.membaza.api.users.persistence.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
+import org.springframework.data.mongodb.core.mapping.Document;
 
-import javax.persistence.*;
-import java.util.Collection;
+import javax.persistence.Id;
+import java.util.Set;
 
 /**
  * @author Emil Forslund
- * @since 1.0.0
+ * @since  1.0.0
  */
-@Data @Entity
-public class Role {
+@Data
+@Document(collection = "roles")
+public final class Role {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
-    private Long id;
-
-    @ManyToMany(mappedBy = "roles")
-    private Collection<User> users;
-
-    @ManyToMany
-    @JoinTable(name = "roles_privileges",
-               joinColumns = @JoinColumn(name = "role_id", referencedColumnName = "id"),
-               inverseJoinColumns = @JoinColumn(name = "privilege_id", referencedColumnName = "id")
-    ) private Collection<Privilege> privileges;
-
+    private String id;
     private String name;
+    private Set<String> privileges;
 
-    public Role() {}
-
-    public Role(final String name) {
-        this.name = name;
+    @JsonIgnore
+    public String getId() {
+        return id;
     }
 }

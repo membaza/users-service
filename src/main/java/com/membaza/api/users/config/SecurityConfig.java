@@ -1,108 +1,82 @@
 package com.membaza.api.users.config;
 
-import org.springframework.context.annotation.Bean;
+import com.membaza.api.users.security.jwt.JwtAuthenticationProvider;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.builders.WebSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
-import org.springframework.security.core.session.SessionRegistry;
-import org.springframework.security.core.session.SessionRegistryImpl;
-import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.web.authentication.AuthenticationFailureHandler;
-import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
-import org.springframework.security.web.authentication.logout.LogoutSuccessHandler;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.web.AuthenticationEntryPoint;
 
 import static java.util.Objects.requireNonNull;
+import static org.springframework.http.HttpMethod.*;
 
 /**
  * @author Emil Forslund
- * @since  1.0.0
+ * @since 1.0.0
  */
 @Configuration
 @EnableWebSecurity
-public class SecurityConfig extends WebSecurityConfigurerAdapter {
+public final class SecurityConfig extends WebSecurityConfigurerAdapter {
 
-    private final UserDetailsService userDetailsService;
-    private final AuthenticationSuccessHandler myAuthenticationSuccessHandler;
-    private final LogoutSuccessHandler myLogoutSuccessHandler;
-    private final AuthenticationFailureHandler authenticationFailureHandler;
-//    private final CustomWebAuthenticationDetailsSource authenticationDetailsSource;
+    private final AuthenticationEntryPoint authenticationEntryPoint;
+    private final JwtAuthenticationProvider jwtAuthenticationProvider;
 
-    public SecurityConfig(final UserDetailsService userDetailsService,
-                          final AuthenticationSuccessHandler myAuthenticationSuccessHandler,
-                          final LogoutSuccessHandler myLogoutSuccessHandler,
-                          final AuthenticationFailureHandler authenticationFailureHandler) {
+    public SecurityConfig(AuthenticationEntryPoint authenticationEntryPoint,
+                          JwtAuthenticationProvider jwtAuthenticationProvider) {
 
-        this.userDetailsService             = requireNonNull(userDetailsService);
-        this.myAuthenticationSuccessHandler = requireNonNull(myAuthenticationSuccessHandler);
-        this.myLogoutSuccessHandler         = requireNonNull(myLogoutSuccessHandler);
-        this.authenticationFailureHandler   = requireNonNull(authenticationFailureHandler);
+        this.authenticationEntryPoint   = requireNonNull(authenticationEntryPoint);
+        this.jwtAuthenticationProvider  = requireNonNull(jwtAuthenticationProvider);
     }
 
     @Override
-    protected void configure(final AuthenticationManagerBuilder auth) throws Exception {
-//        auth.authenticationProvider(authProvider());
+    protected void configure(AuthenticationManagerBuilder auth) {
+        auth.authenticationProvider(jwtAuthenticationProvider);
     }
 
     @Override
-    public void configure(final WebSecurity web) throws Exception {
-        web.ignoring()
-            .antMatchers("/resources/**");
-    }
-
-    @Override
-    protected void configure(final HttpSecurity http) throws Exception {
+    protected void configure(HttpSecurity http) throws Exception {
+        // We don't need CSRF for JWT based authentication
         http.csrf().disable()
-            .authorizeRequests()
-            .antMatchers("/login*","/login*", "/logout*", "/signin/**", "/signup/**",
-                         "/user/register*", "/user/register/confirm*", "/expiredAccount*", "/registration*",
-                         "/badUser*", "/user/register/resend*" ,"/user/password/forgot*", "/user/password/reset*",
-                         "/user/password/change*", "/email/error*", "/resources/**","/user/register/success*","/qrcode*").permitAll()
-            .antMatchers("/invalidSession*").anonymous()
-            .antMatchers("/user/password/update*","/user/password/save*").hasAuthority("CHANGE_PASSWORD_PRIVILEGE")
-            .anyRequest().hasAuthority("READ_PRIVILEGE")
-            .and()
-            .formLogin()
-            .loginPage("/login")
-            .defaultSuccessUrl("/homepage.html")
-            .failureUrl("/login?error=true")
-            .successHandler(myAuthenticationSuccessHandler)
-            .failureHandler(authenticationFailureHandler)
-//            .authenticationDetailsSource(authenticationDetailsSource)
-            .permitAll()
+            .exceptionHandling()
+            .authenticationEntryPoint(authenticationEntryPoint)
+
             .and()
             .sessionManagement()
-            .invalidSessionUrl("/invalidSession.html")
-            .maximumSessions(1).sessionRegistry(sessionRegistry()).and()
-            .sessionFixation().none()
+            .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+
             .and()
-            .logout()
-            .logoutSuccessHandler(myLogoutSuccessHandler)
-            .invalidateHttpSession(false)
-            .logoutSuccessUrl("/logout.html?logSucc=true")
-            .deleteCookies("JSESSIONID")
-            .permitAll();
-    }
+            .authorizeRequests()
+            .antMatchers(POST,
+                "/users",
+                "/users/{userId}/verify",
+                "/users/{userId}/cancel",
+                "/users/login",
+                "/users/logout").permitAll()
 
-//    @Bean
-//    public DaoAuthenticationProvider authProvider() {
-//        final CustomAuthenticationProvider authProvider = new CustomAuthenticationProvider();
-//        authProvider.setUserDetailsService(userDetailsService);
-//        authProvider.setPasswordEncoder(encoder());
-//        return authProvider;
-//    }
+            .antMatchers(PUT,
+                 "/users/{userId}/email/verify",
+                 "/users/{userId}/email/cancel",
+                 "/users/{userId}/password/verify",
+                 "/users/{userId}/password/cancel").permitAll()
 
-    @Bean
-    public PasswordEncoder encoder() {
-        return new BCryptPasswordEncoder(11);
-    }
+            .antMatchers(DELETE,
+                 "/users/{userId}/verify",
+                 "/users/{userId}/cancel").permitAll()
 
-    @Bean
-    public SessionRegistry sessionRegistry() {
-        return new SessionRegistryImpl();
+            .and()
+            .authorizeRequests()
+            .antMatchers(POST,
+                 "/users/refresh",
+                 "/users/{userId}/roles/{role}").authenticated()
+
+            .antMatchers(PUT,
+                 "/users/{userId}/email",
+                 "/users/{userId}/password").authenticated()
+
+            .antMatchers(DELETE,
+                 "/users/{userId}",
+                 "/users/{userId}/roles/{role}").authenticated();
     }
 }

@@ -1,48 +1,69 @@
 package com.membaza.api.users.persistence.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
-import org.jboss.aerogear.security.otp.api.Base32;
+import org.springframework.data.mongodb.core.mapping.Document;
 
-import javax.persistence.*;
-import java.util.Collection;
+import javax.persistence.Id;
+import javax.validation.constraints.NotNull;
+import java.util.Date;
+import java.util.Set;
 
 /**
  * @author Emil Forslund
- * @since 1.0.0
+ * @since  1.0.0
  */
 @Data
-@Entity
-@Table(name = "user_account")
-public class User {
+@Document(collection = "users")
+public final class User {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
-    private Long id;
-
-    private String firstName;
-
-    private String lastName;
-
-    private String email;
-
-    @Column(length = 60)
-    private String password;
-
+    private String id;
+    private @NotNull String email;
+    private @NotNull String password;
+    private @NotNull Set<Role> roles;
+    private @NotNull Set<String> privileges;
+    private @NotNull Date dateRegistered;
+    private boolean confirmed;
     private boolean enabled;
 
-    private boolean isUsing2FA;
+    private String userCreationCode;
+    private Set<EmailChange> emailChanges;
+    private Set<PasswordChange> passwordChanges;
+    private Set<UserDeletion> userDeletions;
 
-    private String secret;
+    @JsonIgnore
+    public String getPassword() {
+        return password;
+    }
 
-    @ManyToMany(fetch = FetchType.EAGER)
-    @JoinTable(name = "users_roles",
-               joinColumns = @JoinColumn(name = "user_id", referencedColumnName = "id"),
-               inverseJoinColumns = @JoinColumn(name = "role_id", referencedColumnName = "id")
-    )
-    private Collection<Role> roles;
+    @JsonIgnore
+    public boolean isConfirmed() {
+        return confirmed;
+    }
 
-    public User() {
-        this.secret = Base32.random();
-        this.enabled = false;
+    @JsonIgnore
+    public boolean isEnabled() {
+        return enabled;
+    }
+
+    @JsonIgnore
+    public String getUserCreationCode() {
+        return userCreationCode;
+    }
+
+    @JsonIgnore
+    public Set<EmailChange> getEmailChanges() {
+        return emailChanges;
+    }
+
+    @JsonIgnore
+    public Set<PasswordChange> getPasswordChanges() {
+        return passwordChanges;
+    }
+
+    @JsonIgnore
+    public Set<UserDeletion> getUserDeletions() {
+        return userDeletions;
     }
 }
