@@ -35,7 +35,7 @@ public final class JwtAuthenticationProvider implements AuthenticationProvider {
         final Claims claims = jwt.validate(token);
 
         final String userId = claims.getSubject();
-        final String email  = claims.get("email", String.class);
+        final String email  = claims.get("mail", String.class);
 
         @SuppressWarnings("unchecked")
         final List<String> scopes = (List<String>) claims.get("scopes", List.class);

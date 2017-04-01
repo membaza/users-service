@@ -6,6 +6,7 @@ import com.membaza.api.users.controller.dto.RegisterDto;
 import com.membaza.api.users.controller.dto.VerifyDto;
 import com.membaza.api.users.persistence.model.Role;
 import com.membaza.api.users.persistence.model.User;
+import com.membaza.api.users.service.email.EmailService;
 import com.membaza.api.users.throwable.InvalidVerificationCodeException;
 import com.membaza.api.users.util.CommaSeparated;
 import com.mongodb.DuplicateKeyException;
@@ -42,18 +43,21 @@ public class RegisterController {
     private final PasswordEncoder passEncoder;
     private final Environment env;
     private final MongoTemplate mongo;
+    private final EmailService email;
 
     public RegisterController(DateComponent dates,
                               RandomComponent random,
                               PasswordEncoder passEncoder,
                               Environment env,
-                              MongoTemplate mongo) {
+                              MongoTemplate mongo,
+                              EmailService email) {
 
         this.dates       = requireNonNull(dates);
         this.random      = requireNonNull(random);
         this.passEncoder = requireNonNull(passEncoder);
         this.env         = requireNonNull(env);
         this.mongo       = requireNonNull(mongo);
+        this.email       = requireNonNull(email);
     }
 
     @PostMapping
@@ -69,7 +73,7 @@ public class RegisterController {
 
         // If the user is logged in with CREATE_USER privilege, then we can set
         // confirmed to true immediately. Otherwise, the registration will have
-        // to be confirmed by email.
+        // to be confirmed by mail.
 
         user.setConfirmed(false);
         user.setUserCreationCode(random.nextString(40));
@@ -77,7 +81,12 @@ public class RegisterController {
 
         LOGGER.info("User '" + register.getEmail() + "' registered.");
 
-        // TODO: Send out confirmation email
+        // TODO: Send out confirmation mail
+
+        email.send(
+            "confirm_registration",
+            ""
+        );
     }
 
     @PostMapping("/{userId}/verify")
@@ -118,7 +127,7 @@ public class RegisterController {
     ////////////////////////////////////////////////////////////////////////////
 
     @ExceptionHandler(DuplicateKeyException.class)
-    @ResponseStatus(value = CONFLICT, reason = "An user with that email already exists")
+    @ResponseStatus(value = CONFLICT, reason = "An user with that mail already exists")
     public void duplicateKeyException() {}
 
     private Set<Role> defaultRoles() {

@@ -40,19 +40,19 @@ public class UserController {
     //                             Change Email                               //
     ////////////////////////////////////////////////////////////////////////////
 
-    @PutMapping("/{userId}/email")
+    @PutMapping("/{userId}/mail")
     void changeEmail(@PathVariable String userId,
                      @RequestBody EmailDto email) {
 
     }
 
-    @PutMapping("/{userId}/email/verify")
+    @PutMapping("/{userId}/mail/verify")
     void changeEmailVerify(@PathVariable String userId,
                            @RequestBody VerifyDto verification) {
 
     }
 
-    @PutMapping("/{userId}/email/cancel")
+    @PutMapping("/{userId}/mail/cancel")
     void changeEmailCancel(@PathVariable String userId,
                            @RequestBody VerifyDto verification) {
 

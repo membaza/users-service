@@ -57,7 +57,7 @@ public class LoginController {
     }
 
     private User getLoggedIn(LoginDto login) {
-        final User user = mongo.findOne(query(where("email").is(login.getEmail())), User.class);
+        final User user = mongo.findOne(query(where("mail").is(login.getEmail())), User.class);
         if (user == null || !passwordEncoder.matches(
                 login.getPassword(),
                 user.getPassword())) {

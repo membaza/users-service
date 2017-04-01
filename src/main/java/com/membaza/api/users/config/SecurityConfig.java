@@ -57,8 +57,8 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 "/users/logout").permitAll()
 
             .antMatchers(PUT,
-                 "/users/{userId}/email/verify",
-                 "/users/{userId}/email/cancel",
+                 "/users/{userId}/mail/verify",
+                 "/users/{userId}/mail/cancel",
                  "/users/{userId}/password/verify",
                  "/users/{userId}/password/cancel").permitAll()
 
@@ -73,7 +73,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                  "/users/{userId}/roles/{role}").authenticated()
 
             .antMatchers(PUT,
-                 "/users/{userId}/email",
+                 "/users/{userId}/mail",
                  "/users/{userId}/password").authenticated()
 
             .antMatchers(DELETE,
