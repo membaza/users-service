@@ -1,5 +1,5 @@
 # users-service
-A small microservice for managing user registrations, password changes and issue access tokens. Built using Spring Boot and Spring Security. User information is stored in a MongoDB database. Authentication information is passed using JWS tokens in every request, eliminating the need for a distributed token store.
+A small microservice for managing user registrations, password changes and issue access tokens. Built using Spring Boot and Spring Security. User information is stored in a MongoDB database. Authentication information is passed using JWT tokens in every request, eliminating the need for a distributed token store.
 
 ## Features
 * Register Users
@@ -64,7 +64,7 @@ POST /users/{userId}/cancel
 ```
 
 ### Login (Request a Token)
-Request a JWS authentication token.
+Request a JWT authentication token.
 
 ```
 POST /users/login 
@@ -75,7 +75,7 @@ POST /users/login
 ```
 
 ### Refresh Login Token
-Request a new updated JWS authentication token by handing in the old (but still valid) one.
+Request a new updated JWT authentication token by handing in the old (but still valid) one.
 
 ```
 POST /users/refresh
