@@ -21,6 +21,9 @@ public final class User {
     @Id
     private String id;
 
+    private @NotNull String firstname;
+    private @NotNull String lastname;
+
     @Indexed(unique=true)
     private @NotNull String email;
     private @NotNull String password;

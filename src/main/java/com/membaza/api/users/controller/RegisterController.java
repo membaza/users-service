@@ -7,6 +7,7 @@ import com.membaza.api.users.controller.dto.VerifyDto;
 import com.membaza.api.users.persistence.model.Role;
 import com.membaza.api.users.persistence.model.User;
 import com.membaza.api.users.service.email.EmailService;
+import com.membaza.api.users.service.text.TextService;
 import com.membaza.api.users.throwable.InvalidVerificationCodeException;
 import com.membaza.api.users.util.CommaSeparated;
 import com.mongodb.DuplicateKeyException;
@@ -19,7 +20,9 @@ import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 import static java.util.Objects.requireNonNull;
@@ -29,7 +32,7 @@ import static org.springframework.http.HttpStatus.CONFLICT;
 
 /**
  * @author Emil Forslund
- * @since 1.0.0
+ * @since  1.0.0
  */
 @RestController
 @RequestMapping("/users")
@@ -44,13 +47,15 @@ public class RegisterController {
     private final Environment env;
     private final MongoTemplate mongo;
     private final EmailService email;
+    private final TextService text;
 
     public RegisterController(DateComponent dates,
                               RandomComponent random,
                               PasswordEncoder passEncoder,
                               Environment env,
                               MongoTemplate mongo,
-                              EmailService email) {
+                              EmailService email,
+                              TextService text) {
 
         this.dates       = requireNonNull(dates);
         this.random      = requireNonNull(random);
@@ -58,12 +63,18 @@ public class RegisterController {
         this.env         = requireNonNull(env);
         this.mongo       = requireNonNull(mongo);
         this.email       = requireNonNull(email);
+        this.text        = requireNonNull(text);
     }
 
     @PostMapping
-    void register(@RequestBody RegisterDto register) {
+    void register(@RequestBody RegisterDto register,
+                  @RequestParam(required = false) String lang) {
+
+        final String language = getLanguage(lang);
         final User user = new User();
 
+        user.setFirstname(register.getFirstname());
+        user.setLastname(register.getLastname());
         user.setEmail(register.getEmail());
         user.setPassword(passEncoder.encode(register.getPassword()));
         user.setDateRegistered(dates.now());
@@ -75,18 +86,37 @@ public class RegisterController {
         // confirmed to true immediately. Otherwise, the registration will have
         // to be confirmed by mail.
 
+        final String code = random.nextString(40);
         user.setConfirmed(false);
-        user.setUserCreationCode(random.nextString(40));
+        user.setUserCreationCode(code);
         mongo.insert(user); // Exception is handled below.
 
         LOGGER.info("User '" + register.getEmail() + "' registered.");
 
-        // TODO: Send out confirmation mail
+        final String url = env.getProperty("service.email.siteurl");
+        final Map<String, String> emailArgs = new HashMap<>();
+        emailArgs.put("firstname", register.getFirstname());
+        emailArgs.put("lastname", register.getLastname());
+        emailArgs.put("sitename", env.getProperty("service.email.sitename"));
+        emailArgs.put("urls.register.verify", url + "/register/success");
+        emailArgs.put("urls.register.cancel", url + "/register/cancel");
+        emailArgs.put("userId", requireNonNull(user.getId()));
+        emailArgs.put("code", code);
 
-        email.send(
-            "confirm_registration",
-            ""
-        );
+        try {
+            email.send(
+                register.getFirstname() + " " + register.getLastname(),
+                register.getEmail(),
+                "register_confirm",
+                language,
+                emailArgs
+            );
+        } catch (final Throwable ex) {
+            LOGGER.error("Failed to send email to " + register.getEmail());
+            // Delete the user again since the user didn't get the email.
+            mongo.remove(user);
+            throw ex;
+        }
     }
 
     @PostMapping("/{userId}/verify")
@@ -138,5 +168,19 @@ public class RegisterController {
 
     private Set<String> defaultPrivileges() {
         return CommaSeparated.toSet(env.getProperty("service.privileges.default"));
+    }
+
+    private String getLanguage(String lang) {
+        if (lang == null) {
+            return "en";
+        } else {
+            if (text.has(lang)) {
+                return lang;
+            } else {
+                throw new IllegalArgumentException(
+                    "'" + lang + "' is not a valid language."
+                );
+            }
+        }
     }
 }

@@ -1,74 +1,112 @@
 package com.membaza.api.users.service.email;
 
-import com.membaza.api.users.throwable.EmailDeliveryException;
-import org.springframework.context.MessageSource;
+import com.membaza.api.users.service.text.TextService;
+import lombok.Data;
 import org.springframework.core.env.Environment;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
-import org.thymeleaf.TemplateEngine;
-import org.thymeleaf.context.Context;
+import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.client.support.BasicAuthorizationInterceptor;
+import org.springframework.http.converter.FormHttpMessageConverter;
+import org.springframework.http.converter.StringHttpMessageConverter;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
-import javax.mail.MessagingException;
-import javax.mail.internet.MimeMessage;
-import java.util.Locale;
-import java.util.stream.Stream;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.HashMap;
+import java.util.Map;
 
+import static java.util.Arrays.asList;
 import static java.util.Objects.requireNonNull;
+import static java.util.stream.Collectors.joining;
 
 /**
  * @author Emil Forslund
  * @since  1.0.0
  */
+@Service
 public final class EmailServiceImpl implements EmailService {
 
-    private final MessageSource msgSource;
-    private final JavaMailSender sender;
-    private final TemplateEngine engine;
+    private static final String EMAIL_FILE = "/mail/*.html";
+
     private final Environment env;
+    private final TextService text;
+    private final RestTemplate mailgun;
 
-    public EmailServiceImpl(MessageSource msgSource,
-                            JavaMailSender sender,
-                            TemplateEngine engine,
-                            Environment env) {
+    EmailServiceImpl(Environment env,
+                     TextService text) {
 
-        this.msgSource = requireNonNull(msgSource);
-        this.sender    = requireNonNull(sender);
-        this.engine    = requireNonNull(engine);
-        this.env       = requireNonNull(env);
+        this.env     = requireNonNull(env);
+        this.text    = requireNonNull(text);
+        this.mailgun = new RestTemplate();
+
+        this.mailgun.setMessageConverters(asList(
+            new FormHttpMessageConverter(),
+            new StringHttpMessageConverter()
+        ));
+
+        this.mailgun.getInterceptors().add(new BasicAuthorizationInterceptor(
+            "api", env.getProperty("mailgun.apiKey")
+        ));
     }
 
     @Override
-    public void send(String template,
-                     String subject,
-                     String recipientName,
-                     String recipientEmail,
-                     Locale locale,
-                     ContextConsumer... setters) {
+    public void send(String to,
+                     String toEmail,
+                     String template,
+                     String language,
+                     Map<String, String> args) {
 
-        final Context ctx = new Context(locale);
-        Stream.of(setters).forEach(setter -> setter.accept(ctx));
-        msgSource.getMessage(template + ".subject", new Object[] {
-            recipientName,
-            recipientEmail
-        }, locale);
+        final String subject = text.get(template.replace('_', '.'), language);
+        final String body    = body(template, language, args);
+        send(subject, to, toEmail, body);
+    }
+
+    private String body(String template, String language, Map<String, String> args) {
+        final String templateFile = EMAIL_FILE.replace("*", template);
 
         try {
-            // Prepare message using a Spring helper
-            final MimeMessage mimeMessage = sender.createMimeMessage();
-            final MimeMessageHelper message = new MimeMessageHelper(mimeMessage, true, "UTF-8");
-
-            message.setSubject(subject);
-            message.setFrom(env.getProperty("service.email.sender"));
-            message.setTo(recipientEmail);
-
-            // Create the HTML body using Thymeleaf
-            final String htmlContent = engine.process(template + ".html", ctx);
-            message.setText(htmlContent, true);
-
-            // Send mail
-            sender.send(mimeMessage);
-        } catch (final MessagingException ex) {
-            throw new EmailDeliveryException(ex);
+            return Files.lines(Paths.get(
+                new PathMatchingResourcePatternResolver()
+                    .getResource(templateFile)
+                    .getURI()
+            )).map(line -> text.format(line, language, args))
+                .collect(joining("\n"));
+        } catch (final IOException ex) {
+            throw new IllegalArgumentException(
+                "Could not find email template '" + templateFile + "'."
+            );
         }
+    }
+
+    private void send(String subject, String to, String toEmail, String body) {
+        final String url = "https://api.mailgun.net/v3/" +
+            env.getProperty("mailgun.domain") + "/messages";
+
+        final Map<String, String> args = new HashMap<>();
+        args.put("subject", subject);
+        args.put("from",  env.getProperty("service.email.sitename") +
+                  " <" +  env.getProperty("service.email.sender") + ">");
+        args.put("to", to + " <" + toEmail + ">");
+        args.put("html", body);
+
+        final ResponseEntity<MailGunResponse> response =
+            mailgun.postForEntity(url,args, MailGunResponse.class);
+
+
+
+        if (!response.getStatusCode().is2xxSuccessful()) {
+            throw new RuntimeException(
+                "Error delivering mail. Message: " +
+                response.getBody().getMessage()
+            );
+        }
+    }
+
+    @Data
+    private final static class MailGunResponse {
+        private String message;
+        private String id;
     }
 }

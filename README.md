@@ -27,6 +27,18 @@ service.roles.default      = ROLE_USER
 service.privileges.default =
 
 service.purge.enabled = true
+
+service.email.sender   = noreply@membaza.com
+service.email.sitename = Membaza
+service.email.siteurl  = http://membaza.com
+
+# MongoDB Settings
+spring.data.mongodb.host = localhost
+spring.data.mongodb.port = 27017
+
+# MailChimp Settings
+mailgun.apiKey =
+mailgun.domain = 
 ```
 
 ## API Commands
@@ -39,6 +51,8 @@ If an authentication token is specified and it has the `CREATE_USER` right, then
 POST /users
 {
     "email" : "...",
+    "firstname" : "...",
+    "lastname" : "...",
     "password" : "..."
 }
 ```

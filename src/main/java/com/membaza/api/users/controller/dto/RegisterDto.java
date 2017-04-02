@@ -21,7 +21,14 @@ public final class RegisterDto {
 
     @NotNull
     @Size(min = 1)
+    private String firstname;
+
+    @NotNull
+    @Size(min = 1)
+    private String lastname;
+
+    @NotNull
+    @Size(min = 1)
     @ValidPassword
     private String password;
-
 }
