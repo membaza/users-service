@@ -27,5 +27,4 @@ public class ValidatorConfig {
     public ConfirmationValidator confirmationValidator() {
         return new ConfirmationValidator();
     }
-
 }

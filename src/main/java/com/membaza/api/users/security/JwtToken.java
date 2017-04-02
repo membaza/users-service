@@ -1,4 +1,4 @@
-package com.membaza.api.users.service.jwt;
+package com.membaza.api.users.security;
 
 import lombok.Getter;
 

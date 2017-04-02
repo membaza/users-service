@@ -1,4 +1,4 @@
-package com.membaza.api.users.security.jwt;
+package com.membaza.api.users.security;
 
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;

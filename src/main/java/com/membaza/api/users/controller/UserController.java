@@ -3,7 +3,7 @@ package com.membaza.api.users.controller;
 import com.membaza.api.users.controller.dto.EmailDto;
 import com.membaza.api.users.controller.dto.PasswordDto;
 import com.membaza.api.users.controller.dto.VerifyDto;
-import com.membaza.api.users.persistence.model.User;
+import com.membaza.api.users.persistence.User;
 import org.springframework.core.env.Environment;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.web.bind.annotation.*;

@@ -1,9 +1,9 @@
 package com.membaza.api.users.controller;
 
 import com.membaza.api.users.controller.dto.LoginDto;
-import com.membaza.api.users.persistence.model.User;
+import com.membaza.api.users.persistence.User;
 import com.membaza.api.users.service.jwt.JwtService;
-import com.membaza.api.users.service.jwt.JwtToken;
+import com.membaza.api.users.security.JwtToken;
 import com.membaza.api.users.throwable.InvalidEmailOrPasswordException;
 import com.membaza.api.users.throwable.UserDisabledException;
 import com.membaza.api.users.throwable.UserNotConfirmedException;

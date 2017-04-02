@@ -1,7 +1,7 @@
 package com.membaza.api.users.service.purge;
 
-import com.membaza.api.users.component.DateComponent;
-import com.membaza.api.users.persistence.model.User;
+import com.membaza.api.users.service.date.DateService;
+import com.membaza.api.users.persistence.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.env.Environment;
@@ -30,12 +30,12 @@ public final class TokensPurgeService {
     private static final Logger LOGGER =
         LoggerFactory.getLogger(TokensPurgeService.class);
 
-    private final DateComponent dates;
+    private final DateService dates;
     private final MongoTemplate mongo;
     private final Environment env;
 
     public TokensPurgeService(
-            final DateComponent dates,
+            final DateService dates,
             final MongoTemplate mongo,
             final Environment env) {
 

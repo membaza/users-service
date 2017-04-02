@@ -1,4 +1,4 @@
-package com.membaza.api.users.persistence.model;
+package com.membaza.api.users.persistence;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;

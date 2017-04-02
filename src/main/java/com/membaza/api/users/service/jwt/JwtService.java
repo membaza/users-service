@@ -1,6 +1,7 @@
 package com.membaza.api.users.service.jwt;
 
-import com.membaza.api.users.persistence.model.User;
+import com.membaza.api.users.persistence.User;
+import com.membaza.api.users.security.JwtToken;
 import io.jsonwebtoken.Claims;
 
 /**

@@ -1,8 +1,8 @@
 package com.membaza.api.users.controller;
 
-import com.membaza.api.users.persistence.model.Role;
-import com.membaza.api.users.persistence.model.User;
-import com.membaza.api.users.security.jwt.JwtAuthentication;
+import com.membaza.api.users.persistence.Role;
+import com.membaza.api.users.persistence.User;
+import com.membaza.api.users.security.JwtAuthentication;
 import com.membaza.api.users.throwable.OperationNotAllowedException;
 import com.membaza.api.users.throwable.RoleNotFoundException;
 import com.membaza.api.users.throwable.UserNotFoundException;

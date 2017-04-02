@@ -1,8 +1,8 @@
-package com.membaza.api.users.persistence.model;
+package com.membaza.api.users.persistence;
 
 import lombok.Data;
-
 import org.springframework.data.annotation.Id;
+
 import java.util.Date;
 
 /**
@@ -10,10 +10,10 @@ import java.util.Date;
  * @since  1.0.0
  */
 @Data
-public final class UserDeletion {
+public final class EmailChange {
 
-    @Id
-    private String id;
+    private @Id String id;
     private Date initiated;
+    private String changeTo;
 
 }

@@ -1,13 +1,13 @@
-package com.membaza.api.users.security.jwt.extractor;
+package com.membaza.api.users.security.extractor;
 
 import org.springframework.security.authentication.AuthenticationServiceException;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
 /**
  * @author Emil Forslund
  * @since 1.0.0
  */
-@Component
+@Service
 public final class JwtHeaderTokenExtractor
 implements TokenExtractor {
 

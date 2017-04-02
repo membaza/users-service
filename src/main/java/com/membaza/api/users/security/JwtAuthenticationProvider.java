@@ -1,7 +1,6 @@
-package com.membaza.api.users.security.jwt;
+package com.membaza.api.users.security;
 
 import com.membaza.api.users.service.jwt.JwtService;
-import com.membaza.api.users.service.jwt.JwtToken;
 import io.jsonwebtoken.Claims;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.core.Authentication;

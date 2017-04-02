@@ -23,5 +23,4 @@ public class MongoConfig {
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
-
 }

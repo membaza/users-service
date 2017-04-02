@@ -1,6 +1,6 @@
-package com.membaza.api.users.component;
+package com.membaza.api.users.service.random;
 
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
 import java.security.SecureRandom;
 
@@ -10,17 +10,17 @@ import static java.util.Objects.requireNonNull;
  * @author Emil Forslund
  * @since  1.0.0
  */
-@Component
-public final class RandomComponentImpl implements RandomComponent {
+@Service
+public final class RandomServiceImpl implements RandomService {
 
     private final SecureRandom random;
 
-    public RandomComponentImpl() {
+    public RandomServiceImpl() {
         random = new SecureRandom();
         random.setSeed(System.currentTimeMillis());
     }
 
-    RandomComponentImpl(SecureRandom random) {
+    RandomServiceImpl(SecureRandom random) {
         this.random = requireNonNull(random);
     }
 

@@ -1,6 +1,6 @@
 package com.membaza.api.users.config;
 
-import com.membaza.api.users.security.jwt.JwtAuthenticationProvider;
+import com.membaza.api.users.security.JwtAuthenticationProvider;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -26,8 +26,8 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
     public SecurityConfig(AuthenticationEntryPoint authenticationEntryPoint,
                           JwtAuthenticationProvider jwtAuthenticationProvider) {
 
-        this.authenticationEntryPoint   = requireNonNull(authenticationEntryPoint);
-        this.jwtAuthenticationProvider  = requireNonNull(jwtAuthenticationProvider);
+        this.authenticationEntryPoint  = requireNonNull(authenticationEntryPoint);
+        this.jwtAuthenticationProvider = requireNonNull(jwtAuthenticationProvider);
     }
 
     @Override
@@ -45,6 +45,10 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
             .and()
             .sessionManagement()
             .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+
+            ////////////////////////////////////////////////////////////////////
+            //                          Public Commands                       //
+            ////////////////////////////////////////////////////////////////////
 
             .and()
             .authorizeRequests()
@@ -65,6 +69,10 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
             .antMatchers(DELETE,
                  "/users/{userId}/verify",
                  "/users/{userId}/cancel").permitAll()
+
+            ////////////////////////////////////////////////////////////////////
+            //                        Restricted Commands                     //
+            ////////////////////////////////////////////////////////////////////
 
             .and()
             .authorizeRequests()

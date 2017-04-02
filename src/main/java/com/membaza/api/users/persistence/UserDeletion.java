@@ -1,4 +1,4 @@
-package com.membaza.api.users.persistence.model;
+package com.membaza.api.users.persistence;
 
 import lombok.Data;
 
@@ -10,11 +10,10 @@ import java.util.Date;
  * @since  1.0.0
  */
 @Data
-public final class PasswordChange {
+public final class UserDeletion {
 
     @Id
     private String id;
     private Date initiated;
-    private String changeTo;
 
 }

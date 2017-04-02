@@ -1,11 +1,11 @@
 package com.membaza.api.users.controller;
 
-import com.membaza.api.users.component.DateComponent;
-import com.membaza.api.users.component.RandomComponent;
+import com.membaza.api.users.service.date.DateService;
+import com.membaza.api.users.service.random.RandomService;
 import com.membaza.api.users.controller.dto.RegisterDto;
 import com.membaza.api.users.controller.dto.VerifyDto;
-import com.membaza.api.users.persistence.model.Role;
-import com.membaza.api.users.persistence.model.User;
+import com.membaza.api.users.persistence.Role;
+import com.membaza.api.users.persistence.User;
 import com.membaza.api.users.service.email.EmailService;
 import com.membaza.api.users.service.text.TextService;
 import com.membaza.api.users.throwable.InvalidVerificationCodeException;
@@ -41,16 +41,16 @@ public class RegisterController {
     private static final Logger LOGGER =
         LoggerFactory.getLogger(RegisterController.class);
 
-    private final DateComponent dates;
-    private final RandomComponent random;
+    private final DateService dates;
+    private final RandomService random;
     private final PasswordEncoder passEncoder;
     private final Environment env;
     private final MongoTemplate mongo;
     private final EmailService email;
     private final TextService text;
 
-    public RegisterController(DateComponent dates,
-                              RandomComponent random,
+    public RegisterController(DateService dates,
+                              RandomService random,
                               PasswordEncoder passEncoder,
                               Environment env,
                               MongoTemplate mongo,

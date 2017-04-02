@@ -1,6 +1,6 @@
-package com.membaza.api.users.component;
+package com.membaza.api.users.service.date;
 
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -11,12 +11,12 @@ import java.util.Date;
  * @author Emil Forslund
  * @since 1.0.0
  */
-@Component
-public final class DateComponentImpl implements DateComponent {
+@Service
+public final class DateServiceImpl implements DateService {
 
     private final Clock clock;
 
-    public DateComponentImpl() {
+    public DateServiceImpl() {
         this.clock = Clock.system(ZoneId.of("UTC"));
     }
 

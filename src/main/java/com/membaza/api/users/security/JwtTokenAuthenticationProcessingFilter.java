@@ -1,7 +1,6 @@
-package com.membaza.api.users.security.jwt;
+package com.membaza.api.users.security;
 
-import com.membaza.api.users.security.jwt.extractor.TokenExtractor;
-import com.membaza.api.users.service.jwt.JwtToken;
+import com.membaza.api.users.security.extractor.TokenExtractor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContext;
@@ -42,6 +41,7 @@ extends AbstractAuthenticationProcessingFilter {
     public Authentication attemptAuthentication(HttpServletRequest request,
                                                 HttpServletResponse response
     ) throws AuthenticationException, IOException, ServletException {
+
         final String tokenPayload = request.getHeader(JWT_TOKEN_HEADER_PARAM);
         final JwtToken token = new JwtToken(tokenExtractor.extract(tokenPayload));
 
@@ -56,6 +56,7 @@ extends AbstractAuthenticationProcessingFilter {
                                             FilterChain chain,
                                             Authentication authResult
     ) throws IOException, ServletException {
+
         final SecurityContext context = SecurityContextHolder.createEmptyContext();
         context.setAuthentication(authResult);
         SecurityContextHolder.setContext(context);

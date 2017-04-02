@@ -1,6 +1,5 @@
-package com.membaza.api.users.security.jwt;
+package com.membaza.api.users.security;
 
-import com.membaza.api.users.service.jwt.JwtToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 
