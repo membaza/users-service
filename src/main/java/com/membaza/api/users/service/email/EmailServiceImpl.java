@@ -58,7 +58,7 @@ public final class EmailServiceImpl implements EmailService {
                      String language,
                      Map<String, String> args) {
 
-        final String subject = text.get(template.replace('_', '.'), language);
+        final String subject = text.get(template.replace('_', '.') + ".subject", language);
         final String body    = body(template, language, args);
         send(subject, to, toEmail, body);
     }
