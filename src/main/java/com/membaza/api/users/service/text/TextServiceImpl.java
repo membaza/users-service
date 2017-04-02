@@ -95,10 +95,10 @@ public final class TextServiceImpl implements TextService {
         int origin = 0;
 
         while (matcher.find(origin)) {
-            final String key = matcher.group("$1");
+            final String key = matcher.group(1);
             final String value = getFromDictionary(key, language, args, dictionary);
 
-            result.append(text.substring(origin, matcher.start() - origin));
+            result.append(text.substring(origin, matcher.start()));
             result.append(value);
 
             origin = matcher.end();

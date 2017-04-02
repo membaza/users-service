@@ -8,16 +8,19 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.support.BasicAuthorizationInterceptor;
 import org.springframework.http.converter.FormHttpMessageConverter;
 import org.springframework.http.converter.StringHttpMessageConverter;
+import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.stereotype.Service;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.HashMap;
 import java.util.Map;
 
 import static java.util.Arrays.asList;
+import static java.util.Collections.singletonList;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.joining;
 
@@ -43,7 +46,8 @@ public final class EmailServiceImpl implements EmailService {
 
         this.mailgun.setMessageConverters(asList(
             new FormHttpMessageConverter(),
-            new StringHttpMessageConverter()
+            new StringHttpMessageConverter(),
+            new MappingJackson2HttpMessageConverter()
         ));
 
         this.mailgun.getInterceptors().add(new BasicAuthorizationInterceptor(
@@ -58,7 +62,7 @@ public final class EmailServiceImpl implements EmailService {
                      String language,
                      Map<String, String> args) {
 
-        final String subject = text.get(template.replace('_', '.') + ".subject", language);
+        final String subject = text.get(template.replace('_', '.') + ".subject", language, args);
         final String body    = body(template, language, args);
         send(subject, to, toEmail, body);
     }
@@ -84,17 +88,15 @@ public final class EmailServiceImpl implements EmailService {
         final String url = "https://api.mailgun.net/v3/" +
             env.getProperty("mailgun.domain") + "/messages";
 
-        final Map<String, String> args = new HashMap<>();
-        args.put("subject", subject);
-        args.put("from",  env.getProperty("service.email.sitename") +
-                  " <" +  env.getProperty("service.email.sender") + ">");
-        args.put("to", to + " <" + toEmail + ">");
-        args.put("html", body);
+        final MultiValueMap<String, String> args = new LinkedMultiValueMap<>();
+        args.put("subject", singletonList(subject));
+        args.put("from",  singletonList(env.getProperty("service.email.sitename") +
+                  " <" +  env.getProperty("service.email.sender") + ">"));
+        args.put("to", singletonList(to + " <" + toEmail + ">"));
+        args.put("html", singletonList(body));
 
         final ResponseEntity<MailGunResponse> response =
-            mailgun.postForEntity(url,args, MailGunResponse.class);
-
-
+            mailgun.postForEntity(url, args, MailGunResponse.class);
 
         if (!response.getStatusCode().is2xxSuccessful()) {
             throw new RuntimeException(
