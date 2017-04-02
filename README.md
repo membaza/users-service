@@ -98,7 +98,7 @@ POST /users/refresh
 }
 ```
 
-### Logut
+### Logout
 Tell the server to clear any cache involving the authenticated user. (This is optional).
 
 ```
