@@ -8,7 +8,6 @@ import com.membaza.api.users.security.JwtAuthentication;
 import com.membaza.api.users.service.date.DateService;
 import com.membaza.api.users.service.email.EmailService;
 import com.membaza.api.users.service.random.RandomService;
-import com.membaza.api.users.service.text.TextService;
 import com.membaza.api.users.throwable.InvalidVerificationCodeException;
 import com.membaza.api.users.throwable.UserNotFoundException;
 import com.membaza.api.users.util.CommaSeparated;
@@ -55,15 +54,13 @@ public class RegisterController {
     private final Environment env;
     private final MongoTemplate mongo;
     private final EmailService email;
-    private final TextService text;
 
     public RegisterController(DateService dates,
                               RandomService random,
                               PasswordEncoder passEncoder,
                               Environment env,
                               MongoTemplate mongo,
-                              EmailService email,
-                              TextService text) {
+                              EmailService email) {
 
         this.dates       = requireNonNull(dates);
         this.random      = requireNonNull(random);
@@ -71,7 +68,6 @@ public class RegisterController {
         this.env         = requireNonNull(env);
         this.mongo       = requireNonNull(mongo);
         this.email       = requireNonNull(email);
-        this.text        = requireNonNull(text);
     }
 
     @PostMapping
@@ -79,7 +75,6 @@ public class RegisterController {
                                   @RequestParam(required = false) String lang,
                                   Authentication auth) {
 
-        final String language = getLanguage(lang);
         final User user = new User();
 
         user.setFirstname(register.getFirstname());
@@ -125,7 +120,7 @@ public class RegisterController {
                     register.getFirstname() + " " + register.getLastname(),
                     register.getEmail(),
                     "register_confirm",
-                    language,
+                    lang,
                     args
                 );
             } catch (final Throwable ex) {
@@ -252,19 +247,5 @@ public class RegisterController {
 
     private String hateoasUrl(String path) {
         return env.getProperty("service.hateoas.baseurl") + "/users/" + path;
-    }
-
-    private String getLanguage(String lang) {
-        if (lang == null) {
-            return "en";
-        } else {
-            if (text.has(lang)) {
-                return lang;
-            } else {
-                throw new IllegalArgumentException(
-                    "'" + lang + "' is not a valid language."
-                );
-            }
-        }
     }
 }

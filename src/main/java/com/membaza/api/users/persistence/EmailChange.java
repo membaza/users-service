@@ -2,6 +2,7 @@ package com.membaza.api.users.persistence;
 
 import lombok.Data;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.Indexed;
 
 import java.util.Date;
 
@@ -15,5 +16,8 @@ public final class EmailChange {
     private @Id String id;
     private Date initiated;
     private String changeTo;
+
+    @Indexed(unique=true)
+    private String code;
 
 }

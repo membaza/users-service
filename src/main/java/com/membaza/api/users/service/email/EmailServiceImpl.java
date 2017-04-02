@@ -59,11 +59,12 @@ public final class EmailServiceImpl implements EmailService {
     public void send(String to,
                      String toEmail,
                      String template,
-                     String language,
+                     String lang,
                      Map<String, String> args) {
 
-        final String subject = text.get(template.replace('_', '.') + ".subject", language, args);
-        final String body    = body(template, language, args);
+        final String language = getLanguage(lang);
+        final String subject  = text.get(template.replace('_', '.') + ".subject", language, args);
+        final String body     = body(template, language, args);
         send(subject, to, toEmail, body);
     }
 
@@ -103,6 +104,20 @@ public final class EmailServiceImpl implements EmailService {
                 "Error delivering mail. Message: " +
                 response.getBody().getMessage()
             );
+        }
+    }
+
+    private String getLanguage(String lang) {
+        if (lang == null) {
+            return "en";
+        } else {
+            if (text.has(lang)) {
+                return lang;
+            } else {
+                throw new IllegalArgumentException(
+                    "'" + lang + "' is not a valid language."
+                );
+            }
         }
     }
 
