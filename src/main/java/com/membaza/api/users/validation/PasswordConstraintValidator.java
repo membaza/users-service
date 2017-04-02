@@ -1,6 +1,5 @@
 package com.membaza.api.users.validation;
 
-import com.google.common.base.Joiner;
 import org.passay.LengthRule;
 import org.passay.PasswordData;
 import org.passay.PasswordValidator;
@@ -10,6 +9,7 @@ import javax.validation.ConstraintValidator;
 import javax.validation.ConstraintValidatorContext;
 
 import static java.util.Collections.singletonList;
+import static java.util.stream.Collectors.joining;
 
 /**
  * @author Emil Forslund
@@ -37,7 +37,7 @@ public final class PasswordConstraintValidator
 
         context.disableDefaultConstraintViolation();
         context.buildConstraintViolationWithTemplate(
-            Joiner.on("\n").join(validator.getMessages(result))
+            validator.getMessages(result).stream().collect(joining("\n"))
         ).addConstraintViolation();
 
         return false;
