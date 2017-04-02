@@ -3,7 +3,14 @@ package com.membaza.api.users.controller;
 import com.membaza.api.users.controller.dto.EmailDto;
 import com.membaza.api.users.controller.dto.PasswordDto;
 import com.membaza.api.users.controller.dto.VerifyDto;
+import com.membaza.api.users.persistence.model.User;
+import org.springframework.core.env.Environment;
+import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * @author Emil Forslund
@@ -13,7 +20,13 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/users")
 public class UserController {
 
+    private final Environment env;
+    private final MongoTemplate mongo;
 
+    public UserController(Environment env, MongoTemplate mongo) {
+        this.env   = requireNonNull(env);
+        this.mongo = requireNonNull(mongo);
+    }
 
     ////////////////////////////////////////////////////////////////////////////
     //                              Delete User                               //
@@ -83,5 +96,14 @@ public class UserController {
     @PutMapping("/{userId}/password/reset")
     void changePassword(@PathVariable String userId) {
 
+    }
+
+    ////////////////////////////////////////////////////////////////////////////
+    //                                Debugging                               //
+    ////////////////////////////////////////////////////////////////////////////
+
+    @GetMapping
+    List<User> getUsers() {
+        return mongo.findAll(User.class);
     }
 }

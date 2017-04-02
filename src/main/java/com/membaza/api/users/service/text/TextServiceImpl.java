@@ -94,7 +94,7 @@ public final class TextServiceImpl implements TextService {
         final Matcher matcher = PATTERN.matcher(text);
         int origin = 0;
 
-        while (matcher.find(origin)) {
+        while (matcher.find()) {
             final String key = matcher.group(1);
             final String value = getFromDictionary(key, language, args, dictionary);
 
