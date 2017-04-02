@@ -43,4 +43,9 @@ public final class User {
     public String getPassword(){
         return password;
     }
+
+    @JsonIgnore
+    public String getUserCreationCode(){
+        return userCreationCode;
+    }
 }

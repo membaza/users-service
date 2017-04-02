@@ -1,14 +1,16 @@
 package com.membaza.api.users.controller;
 
-import com.membaza.api.users.service.date.DateService;
-import com.membaza.api.users.service.random.RandomService;
 import com.membaza.api.users.controller.dto.RegisterDto;
 import com.membaza.api.users.controller.dto.VerifyDto;
 import com.membaza.api.users.persistence.Role;
 import com.membaza.api.users.persistence.User;
+import com.membaza.api.users.security.JwtAuthentication;
+import com.membaza.api.users.service.date.DateService;
 import com.membaza.api.users.service.email.EmailService;
+import com.membaza.api.users.service.random.RandomService;
 import com.membaza.api.users.service.text.TextService;
 import com.membaza.api.users.throwable.InvalidVerificationCodeException;
+import com.membaza.api.users.throwable.UserNotFoundException;
 import com.membaza.api.users.util.CommaSeparated;
 import com.mongodb.DuplicateKeyException;
 import org.slf4j.Logger;
@@ -17,6 +19,11 @@ import org.springframework.core.env.Environment;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.InsufficientAuthenticationException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
@@ -25,10 +32,11 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import static com.membaza.api.users.util.PredicateUtil.either;
 import static java.util.Objects.requireNonNull;
 import static org.springframework.data.mongodb.core.query.Criteria.where;
 import static org.springframework.data.mongodb.core.query.Query.query;
-import static org.springframework.http.HttpStatus.CONFLICT;
+import static org.springframework.http.HttpStatus.*;
 
 /**
  * @author Emil Forslund
@@ -67,8 +75,9 @@ public class RegisterController {
     }
 
     @PostMapping
-    void register(@RequestBody RegisterDto register,
-                  @RequestParam(required = false) String lang) {
+    ResponseEntity<Void> register(@RequestBody RegisterDto register,
+                                  @RequestParam(required = false) String lang,
+                                  Authentication auth) {
 
         final String language = getLanguage(lang);
         final User user = new User();
@@ -85,71 +94,130 @@ public class RegisterController {
         // If the user is logged in with CREATE_USER privilege, then we can set
         // confirmed to true immediately. Otherwise, the registration will have
         // to be confirmed by mail.
+        if (can(auth, "CREATE_USER")) {
+            user.setConfirmed(true);
+        } else {
+            user.setConfirmed(false);
+            user.setUserCreationCode(random.nextString(40));
+        }
 
-        final String code = random.nextString(40);
-        user.setConfirmed(false);
-        user.setUserCreationCode(code);
         mongo.insert(user); // Exception is handled below.
-
         LOGGER.info("User '" + register.getEmail() + "' registered.");
 
-        final String url = env.getProperty("service.email.siteurl");
-        final Map<String, String> emailArgs = new HashMap<>();
-        emailArgs.put("firstname", register.getFirstname());
-        emailArgs.put("lastname", register.getLastname());
-        emailArgs.put("sitename", env.getProperty("service.email.sitename"));
-        emailArgs.put("urls.register.verify", url + "/register/success");
-        emailArgs.put("urls.register.cancel", url + "/register/cancel");
-        emailArgs.put("userId", requireNonNull(user.getId()));
-        emailArgs.put("code", code);
+        // Send confirmation email.
+        final HttpStatus status;
+        if (user.isConfirmed()) {
+            status = CREATED;
 
-        try {
-            email.send(
-                register.getFirstname() + " " + register.getLastname(),
-                register.getEmail(),
-                "register_confirm",
-                language,
-                emailArgs
-            );
-        } catch (final Throwable ex) {
-            LOGGER.error("Failed to send email to " + register.getEmail());
-            // Delete the user again since the user didn't get the email.
-            mongo.remove(user);
-            throw ex;
+        } else {
+            final String url = env.getProperty("service.email.siteurl");
+            final Map<String, String> args = new HashMap<>();
+            args.put("firstname", register.getFirstname());
+            args.put("lastname", register.getLastname());
+            args.put("sitename", env.getProperty("service.email.sitename"));
+            args.put("urls.register.verify", url + "/register/success");
+            args.put("urls.register.cancel", url + "/register/cancel");
+            args.put("userId", requireNonNull(user.getId()));
+            args.put("code", user.getUserCreationCode());
+
+            try {
+                email.send(
+                    register.getFirstname() + " " + register.getLastname(),
+                    register.getEmail(),
+                    "register_confirm",
+                    language,
+                    args
+                );
+            } catch (final Throwable ex) {
+                LOGGER.error("Failed to send email to " + register.getEmail());
+                // Delete the user again since the user didn't get the email.
+                mongo.remove(user);
+                throw ex;
+            }
+
+            status = ACCEPTED;
         }
+
+        return new ResponseEntity<>(status);
     }
 
     @PostMapping("/{userId}/verify")
-    void registerVerify(@PathVariable String userId,
-                        @RequestBody VerifyDto verification) {
+    ResponseEntity<Void> registerVerify(@PathVariable String userId,
+                                        @RequestBody(required = false) VerifyDto verification,
+                                        Authentication auth) {
 
-        if (!mongo.updateFirst(
-            query(where("id").is(userId)
-                  .and("userCreationCode").is(verification.getCode())
-            ), new Update()
-                .set("confirmed", true)
-                .unset("userCreationCode"),
-            User.class
-        ).isUpdateOfExisting()) {
-            throw new InvalidVerificationCodeException();
+        // If no verification code is specified:
+        if (verification == null) {
+            if (can(auth, "VERIFY_CREATE_USER")) {
+                if (!mongo.updateFirst(
+                    query(where("id").is(userId)),
+                    new Update()
+                        .set("confirmed", true)
+                        .unset("userCreationCode"),
+                    User.class
+                ).isUpdateOfExisting()) {
+                    throw new UserNotFoundException();
+                }
+            } else {
+                throw new InsufficientAuthenticationException(
+                    "Either a verification code or the role " +
+                    "'VERIFY_CREATE_USER' is required for this action."
+                );
+            }
+        } else {
+            if (!mongo.updateFirst(
+                query(where("id").is(userId)
+                          .and("userCreationCode").is(verification.getCode())
+                ), new Update()
+                    .set("confirmed", true)
+                    .unset("userCreationCode"),
+                User.class
+            ).isUpdateOfExisting()) {
+                throw new InvalidVerificationCodeException();
+            }
         }
 
+        // TODO: Send out email to user
+
         LOGGER.info("User '" + userId + "' verified registration.");
+        return new ResponseEntity<>(OK);
     }
 
     @PostMapping("/{userId}/cancel")
-    void registerCancel(@PathVariable String userId,
-                        @RequestBody VerifyDto verification) {
+    ResponseEntity<Void> registerCancel(@PathVariable String userId,
+                                        @RequestBody(required = false) VerifyDto verification,
+                                        Authentication auth) {
 
-        if (!mongo.remove(
-            query(where("id").is(userId)
-                      .and("userCreationCode").is(verification.getCode())
-            ), User.class
-        ).isUpdateOfExisting()) {
-            throw new InvalidVerificationCodeException();
+        // If no verification code is specified:
+        if (verification == null) {
+            if (can(auth, "CANCEL_CREATE_USER")) {
+                if (!mongo.remove(
+                    query(where("id").is(userId)
+                        .and("confirmed").is(false)
+                    ), User.class
+                ).isUpdateOfExisting()) {
+                    throw new UserNotFoundException();
+                }
+            } else {
+                throw new InsufficientAuthenticationException(
+                    "Either a verification code or the role " +
+                    "'CANCEL_CREATE_USER' is required for this action."
+                );
+            }
+        } else {
+            if (!mongo.remove(
+                query(where("id").is(userId)
+                    .and("userCreationCode").is(verification.getCode())
+                ), User.class
+            ).isUpdateOfExisting()) {
+                throw new InvalidVerificationCodeException();
+            }
         }
 
+        // TODO: Send out email to user
+
         LOGGER.info("User '" + userId + "' cancelled registration.");
+        return new ResponseEntity<>(OK);
     }
 
     ////////////////////////////////////////////////////////////////////////////
@@ -160,6 +228,10 @@ public class RegisterController {
     @ResponseStatus(value = CONFLICT, reason = "An user with that mail already exists")
     public void duplicateKeyException() {}
 
+    ////////////////////////////////////////////////////////////////////////////
+    //                            Utility Methods                             //
+    ////////////////////////////////////////////////////////////////////////////
+
     private Set<Role> defaultRoles() {
         final Set<String> names = CommaSeparated.toSet(env.getProperty("service.roles.default"));
         final Query rolesQuery = new Query(where("name").in(names));
@@ -168,6 +240,18 @@ public class RegisterController {
 
     private Set<String> defaultPrivileges() {
         return CommaSeparated.toSet(env.getProperty("service.privileges.default"));
+    }
+
+    private boolean can(Authentication auth, String action) {
+        final JwtAuthentication jwtAuth = (JwtAuthentication) auth;
+        final String privilege = action + "_PRIVILEGE";
+        return jwtAuth.getAuthorities().stream()
+            .map(GrantedAuthority::getAuthority)
+            .anyMatch(either("ADMIN_ROLE"::equals, privilege::equals));
+    }
+
+    private String hateoasUrl(String path) {
+        return env.getProperty("service.hateoas.baseurl") + "/users/" + path;
     }
 
     private String getLanguage(String lang) {
