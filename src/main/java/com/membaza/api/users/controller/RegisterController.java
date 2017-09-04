@@ -238,11 +238,23 @@ public class RegisterController {
     }
 
     private boolean can(Authentication auth, String action) {
-        final JwtAuthentication jwtAuth = (JwtAuthentication) auth;
         final String privilege = action + "_PRIVILEGE";
-        return jwtAuth.getAuthorities().stream()
-            .map(GrantedAuthority::getAuthority)
-            .anyMatch(either("ADMIN_ROLE"::equals, privilege::equals));
+
+        // If no authentication is specified, try the default role.
+        if (auth == null) {
+            return defaultPrivileges().contains(privilege)
+            || defaultRoles().stream()
+                .anyMatch(either(
+                    r -> "ADMIN_ROLE".equals(r.getName()),
+                    r -> r.getPrivileges().contains(privilege)
+                ));
+        } else {
+            final JwtAuthentication jwtAuth = (JwtAuthentication) auth;
+
+            return jwtAuth.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .anyMatch(either("ADMIN_ROLE"::equals, privilege::equals));
+        }
     }
 
     private String hateoasUrl(String path) {
