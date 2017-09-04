@@ -7,3 +7,4 @@ nb-configuration.xml
 *.key
 *.pem
 *.der
+.idea
